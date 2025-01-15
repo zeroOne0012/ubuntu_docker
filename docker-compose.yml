@@ -1,0 +1,41 @@
+services:
+  nodejs:
+    build:
+      context: ./handaTest
+      dockerfile: Dockerfile
+    container_name:
+      node
+    ports:
+      - "3002:3002"
+    depends_on:
+      - postgres
+    volumes:
+      - ./handaTest:/usr/src/app         
+      - /usr/src/app/node_modules
+    command:
+      npx nodemon server.js
+
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DB: eggtec
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432  
+      # 컨테이너간 내부 포트 사용
+
+
+
+  postgres:
+    build:
+      context: ./postgres
+      dockerfile: Dockerfile
+    container_name:
+      postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DB: eggtec
+    ports:
+      - "5433:5432"
+    volumes:
+      - /data:/var/lib/postgresql/data
