@@ -7,18 +7,24 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # 첫 번째 sudo 명령
-sudo docker-compose down --remove-orphans
+sudo docker-compose down
 # -v: 볼륨 삭제
 
 
 
 # 두 번째 sudo 명령
-sudo docker-compose build --no-cache
+# sudo docker-compose build --no-cache
 
 # 세 번째 sudo 명령
 sudo docker-compose up --build -d
 # --build: 이미지 재빌드 포함
 # -d: 백그라운드 모드
+
+
+# 재시작
+# docker compose build <service> --no-cache
+# docker compose restart <service>
+
 
 
 # 완료 메시지
