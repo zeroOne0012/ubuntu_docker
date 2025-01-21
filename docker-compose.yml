@@ -13,6 +13,27 @@ services:
       - postgres
     volumes:
       - ./handaTest:/usr/src/app         
+    command:
+      npx nodemon server.js
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DB: eggtec
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432  
+      NODE_PORT: 3002
+      # 컨테이너간 내부 포트 사용
+  nodejs2:
+    image:
+      node_image
+    container_name:
+      node_container2
+    ports:
+      - "3009:3002"
+    depends_on:
+      - postgres
+    volumes:
+      - ./handaTest:/usr/src/app         
       - /usr/src/app/node_modules
     command:
       npx nodemon server.js
@@ -22,9 +43,8 @@ services:
       POSTGRES_DB: eggtec
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432  
+      NODE_PORT: 3002
       # 컨테이너간 내부 포트 사용
-
-
 
   postgres:
     build:
@@ -48,17 +68,19 @@ services:
     restart: always
 
   nginx:
-    build:
-      context: ./nginx
-      dockerfile: Dockerfile
+    # build:
+    #   context: ./nginx
+    #   dockerfile: Dockerfile
     image: nginx_image
-    container_name: nginx_container
+    container_name: 
+      nginx_container
     ports:
     - "81:80"
-    volumes:
-    - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    # volumes:
+    # - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
     depends_on:
     - nodejs
+    - nodejs2
 
 
 
