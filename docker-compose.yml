@@ -68,22 +68,22 @@ services:
     restart: always
 
   nginx:
-    # build:
-    #   context: ./nginx
-    #   dockerfile: Dockerfile
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
     image: nginx_image
     container_name: 
       nginx_container
     ports:
     - "81:80"
-    # volumes:
-    # - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
     depends_on:
     - nodejs
     - nodejs2
+    # volumes:
+    # - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
 
 
-
+#################################
 
 # services:
 #   nodejs:
