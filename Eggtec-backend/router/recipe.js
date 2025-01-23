@@ -4,7 +4,7 @@ const { errorLog } = require("../module/errorLog");
 const fs = require("fs");
 const path = require("path");
 
-const netDir = "C:/Users/abc/Desktop/analysis/main5/models";
+const netDir = "../net";
 
 router.get("/", async (req, res) => {
   try {
@@ -23,22 +23,25 @@ router.get("/", async (req, res) => {
 });
 
 router.get("/exposure", async (req,res)=>{
+  let query;
   try{
-    const selectedQuery = `
-      select type, weight from recipe where selected=true;
+    query = `
+      select type, weight from recipe where "selected"=true;
     `;
-    const selected = await req.client.query(selectedQuery);
-    console.log("what");
-    if(selected.rows.length!==1){
-      errorLog(`${req.method} ${req.originalUrl}`, 5, error.message);
+    const result_selected = await req.client.query(query);
+    if(result_selected.rows.length!==1){
+      errorLog(`${req.method} ${req.originalUrl}`, 5, error.message);      
       res.status(500).json({
         message: "nothing selected"
       });
     }
-
-    console.log("debug1", selected.rows.length);
-    console.log("debug2", selected.rows[0]);
+    const exposureTime = `exp_${(result_selected.rows[0].type).toLowerCase()}`;
     
+    query = `
+      select input_cnt, output_cnt, ${exposureTime} exposure_value from setting;
+    `;
+    const result = await req.client.query(query);
+    res.status(200).json({...result.rows[0], model_name: result_selected.rows[0].weight});
   }  catch (error) {
     errorLog(`${req.method} ${req.originalUrl}`, 1, error.message);
     res.status(500).json({
@@ -53,11 +56,10 @@ router.get("/exposure", async (req,res)=>{
 router.get("/mode", async (req, res) => {
   try {
     if (req.client) req.client.release();
-    const files = fs.readdirSync(netDir);
+    const files = fs.readdirSync(path.join(__dirname, netDir));
     const netFiles = files.filter((file) => file.includes(".net"));
     res.status(200).json(netFiles);
   } catch (error) {
-    console.log(error)
     errorLog(`${req.method} ${req.originalUrl}`, 4, error.message);
     res.status(500).json({
       message: "fs error",

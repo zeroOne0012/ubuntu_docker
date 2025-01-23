@@ -34,8 +34,8 @@ app.listen(3001, () => {
 });
 
 const ports = {
-  standardModePort: [4001, 4002, 4003, 4004, 4005, 4006, 4007, 4008, 4009], 
-  intervalModePort: [4010]
+  standardModePort: [4001, 4002, 4003, 4004, 4005], 
+  intervalModePort: [4006]
 };
 
 // 0: 일반적 메시지 송수신 웹소켓서버, 1: interval 기반 메시지 전달 웹소켓서버

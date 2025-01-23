@@ -3,7 +3,6 @@ const router = express.Router();
 const Json2csvParser = require("json2csv").Parser;
 const fs = require("fs");
 const { errorLog } = require("../module/errorLog");  
-
 router.get("/summary", async (req, res) => {
   try {
     const query = `

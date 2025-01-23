@@ -9,13 +9,9 @@ const getSocket = {
   4001: "CAM1", 
   4002: "CAM2", 
   4003: "Encorder",
-  4004: "Line1",
-  4005: "Line2",
-  4006: "Line3",
-  4007: "Line4",
-  4008: "Line5",
-  4009: "Line6",
-  40010: "Interval"
+  4004: "CAM1 IMAGE",
+  4005: "CAM2 IMAGE",
+  4006: "Interval"
 };
 
 const interval = 3000;

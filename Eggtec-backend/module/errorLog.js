@@ -3,12 +3,12 @@ const fs = require('fs');
 const path = require('path');
 
 const errorCode = {
-    0: "pool-connect failed",
-    1: "query failed",
-    2: "server error",
-    3: "invalid value",
-    4: "fs error",
-    5: "nothing selected"
+  0: "pool-connect failed",
+  1: "query failed",
+  2: "server error",
+  3: "invalid value",
+  4: "fs error",
+  5: "nothing selected"
 }
 
 // DB connection error log (local)
