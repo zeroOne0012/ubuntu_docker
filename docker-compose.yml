@@ -1,18 +1,18 @@
 services:
   nodejs:
     build:
-      context: ./handaTest
+      context: ./Eggtec-backend
       dockerfile: Dockerfile
     image:
       node_image
     container_name:
       node_container
     ports:
-      - "3002:3002"
+      - "3001:3001"
     depends_on:
       - postgres
     volumes:
-      - ./handaTest:/usr/src/app         
+      - ./Eggtec-backend:/usr/src/app         
     command:
       npx nodemon server.js
     environment:
@@ -21,7 +21,7 @@ services:
       POSTGRES_DB: eggtec
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432  
-      NODE_PORT: 3002
+      NODE_PORT: 3001
       # 컨테이너간 내부 포트 사용
   nodejs2:
     image:
@@ -29,11 +29,11 @@ services:
     container_name:
       node_container2
     ports:
-      - "3009:3002"
+      - "3009:3001"
     depends_on:
       - postgres
     volumes:
-      - ./handaTest:/usr/src/app         
+      - ./Eggtec-backend:/usr/src/app         
       - /usr/src/app/node_modules
     command:
       npx nodemon server.js
@@ -43,7 +43,7 @@ services:
       POSTGRES_DB: eggtec
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432  
-      NODE_PORT: 3002
+      NODE_PORT: 3001
       # 컨테이너간 내부 포트 사용
 
   postgres:
@@ -88,16 +88,16 @@ services:
 # services:
 #   nodejs:
 #     build:
-#       context: ./handaTest
+#       context: ./Eggtec-backend
 #       dockerfile: Dockerfile
 #     container_name:
 #       node
 #     ports:
-#       - "3002:3002"
+#       - "3001:3001"
 #     depends_on:
 #       - postgres
 #     volumes:
-#       - ./handaTest:/usr/src/app         
+#       - ./Eggtec-backend:/usr/src/app         
 #       - /usr/src/app/node_modules
 #     command:
 #       npx nodemon server.js
