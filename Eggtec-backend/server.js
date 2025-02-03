@@ -25,12 +25,20 @@ app.get("/", (req, res) => {
   res.send("NodeJS Server is Running");
 });
 
+app.use((req, res, next) => {
+  console.log(`Received request: ${req.method} ${req.protocol}://${req.get('host')}${req.originalUrl}`);
+  next();
+});
+
 app.use("/apis/recipe", recipeRouter);
 app.use("/apis/setting", settingRouter);
 app.use("/apis/history", historyRouter);
 
+
+
+
 app.listen(3001, () => {
-  console.log("Server is Running : http:/localhost:3001");
+  console.log("Server is aassa : http:/localhost:3001");
 });
 
 const ports = {
