@@ -76,24 +76,40 @@
         //     }
         // }
         function testSocketIO() {
-            try {
-                const socket = io("https://localhost", { path: "/socket.io/" }); // Socket.IO 서버 연결
-                socket.on("connect", () => {
-                    document.getElementById('output').textContent = "Socket.IO Connected!";
-                    socket.emit("message", "Hello from client!");
-                });
+    try {
+        const socket = io("https://localhost", { 
+            path: "/socket.io/", 
+            transports: ["websocket"], // WebSocket 우선 사용
+            withCredentials: true, // CORS 문제 해결
+            rejectUnauthorized: false // 로컬 개발 환경에서 SSL 인증 문제 방지
+        });
 
-                socket.on("message", (data) => {
-                    document.getElementById('output').textContent = "Received from server: " + data;
-                });
+        socket.on("connect", () => {
+            document.getElementById('output').textContent = "✅ Socket.IO Connected!";
+            console.log("✅ Connected to Socket.IO Server");
+            socket.emit("message", "Hello from client!");
+        });
 
-                socket.on("connect_error", (error) => {
-                    document.getElementById('output').textContent = "Socket.IO Error: " + error.message;
-                });
-            } catch (error) {
-                document.getElementById('output').textContent = 'Socket.IO Error: ' + error.message;
-            }
-        }
+        socket.on("message", (data) => {
+            document.getElementById('output').textContent = "📩 Received from server: " + data;
+            console.log("📩 Message from server:", data);
+        });
+
+        socket.on("connect_error", (error) => {
+            document.getElementById('output').textContent = "⚠️ Socket.IO Error: " + error.message;
+            console.error("⚠️ Connection Error:", error);
+        });
+
+        socket.on("disconnect", (reason) => {
+            document.getElementById('output').textContent = "🔌 Disconnected: " + reason;
+            console.warn("🔌 Disconnected from server:", reason);
+        });
+    } catch (error) {
+        document.getElementById('output').textContent = '❌ Socket.IO Error: ' + error.message;
+        console.error("❌ Error initializing Socket.IO:", error);
+    }
+}
+
     </script>
 </body>
 </html>
