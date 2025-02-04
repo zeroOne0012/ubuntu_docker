@@ -14,7 +14,7 @@ services:
     volumes:
       - ./Eggtec-backend:/usr/src/app         
     command:
-      npx nodemon server.js
+      npx nodemon --legacy-watch server.js
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 1234
@@ -38,7 +38,7 @@ services:
       - ./Eggtec-backend:/usr/src/app         
       - /usr/src/app/node_modules
     command:
-      npx nodemon server.js
+      npx nodemon --legacy-watch server.js
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 1234

@@ -38,7 +38,7 @@ app.use("/apis/history", historyRouter);
 
 
 app.listen(3001, () => {
-  console.log("Server is aassa : http:/localhost:3001");
+  console.log("Server is running : http:/localhost:3001");
 });
 
 const ports = {
