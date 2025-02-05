@@ -22,44 +22,14 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.get("/exposure", async (req,res)=>{
-  let query;
-  try{
-    query = `
-      select type, weight from recipe where "selected"=true;
-    `;
-    const result_selected = await req.client.query(query);
-    if(result_selected.rows.length!==1){
-      errorLog(`${req.method} ${req.originalUrl}`, 5, error.message);      
-      res.status(500).json({
-        message: "nothing selected"
-      });
-    }
-    const exposureTime = `exp_${(result_selected.rows[0].type).toLowerCase()}`;
-    
-    query = `
-      select input_cnt, output_cnt, ${exposureTime} exposure_value from setting;
-    `;
-    const result = await req.client.query(query);
-    res.status(200).json({...result.rows[0], model_name: result_selected.rows[0].weight});
-  }  catch (error) {
-    errorLog(`${req.method} ${req.originalUrl}`, 1, error.message);
-    res.status(500).json({
-      message: "Query Failed",
-      error: error.message,
-    });
-  } finally {
-    if (req.client) req.client.release(); 
-  }
-});
-
-router.get("/mode", async (req, res) => {
+router.get("/model", async (req, res) => {
   try {
     if (req.client) req.client.release();
-    const files = fs.readdirSync(path.join(__dirname, netDir));
+    const files = fs.readdirSync(netDir);
     const netFiles = files.filter((file) => file.includes(".net"));
     res.status(200).json(netFiles);
   } catch (error) {
+    console.log(error)
     errorLog(`${req.method} ${req.originalUrl}`, 4, error.message);
     res.status(500).json({
       message: "fs error",
@@ -103,7 +73,7 @@ router.post("/", async (req, res) => {
         VALUES ($1, $2, $3, $4)
         RETURNING *;
       `;
-    const values = [idx, nickname, type, weight];
+    const values = [idx, nickname, type, weight.split(/[/\\:]/).at(-1)];
 
     const result = await req.client.query(query, values);
 

@@ -4,14 +4,15 @@ const { Server } = require("socket.io");
 const pool = require("./postgres");
 const { errorLog, errorLogLocal } = require("./errorLog");
 const { create } = require("domain");
+const { emit } = require("process");
 
 const getSocket = {
-  4001: "CAM1", 
-  4002: "CAM2", 
-  4003: "Encorder",
-  4004: "CAM1 IMAGE",
-  4005: "CAM2 IMAGE",
-  4006: "Interval"
+  4001: "Analysis", 
+  4002: "Line1", 
+  4003: "Line2",
+  4004: "Interval",
+  4005: "Cam1_setting",
+  4006: "Cam2_setting"
 };
 
 const interval = 3000;
@@ -114,46 +115,59 @@ function createIntervalSocketServer(port) {
           errorLogLocal("socket.js", 1, err.message);
           return;
         }
+        // 'all_total' tuple (first tuple)
+        // lane(n): -1(null(NG)), 0(OK), 1(NG)
+        const countLane = (result)=>{ // 쿼리 중복 부분
+          let condition = "!="; // NG
+          if(result==="OK") condition = "=";
+          return `COALESCE(SUM(
+            CASE WHEN lane1 ${condition} 0 THEN 1 ELSE 0 END +
+            CASE WHEN lane2 ${condition} 0 THEN 1 ELSE 0 END +
+            CASE WHEN lane3 ${condition} 0 THEN 1 ELSE 0 END +
+            CASE WHEN lane4 ${condition} 0 THEN 1 ELSE 0 END +
+            CASE WHEN lane5 ${condition} 0 THEN 1 ELSE 0 END +
+            CASE WHEN lane6 ${condition} 0 THEN 1 ELSE 0 END
+            ), 0)`;
+        };
+        const countLaneNQuery = (i)=>{ // 쿼리 중복 부분
+          return `
+            SELECT 
+            ${i} lane_no,
+              COALESCE(SUM(CASE WHEN lane${i} != 0 THEN 1 ELSE 0 END), 0) ng_count_today,
+              COALESCE(SUM(CASE WHEN lane${i} = 0 THEN 1 ELSE 0 END), 0) ok_count_today,
+              COALESCE(count(*), 0) total
+            FROM 
+              history
+            WHERE
+              DATE(created_t) = CURRENT_DATE
+            ;
+          `;
+        };
         const totalQuery = `
           SELECT 
             'all_total' as lane_no,
-            COALESCE(SUM(CASE WHEN result = 'NG' THEN 1 ELSE 0 END),0) AS ng_count_today,
-            COALESCE(SUM(CASE WHEN result = 'OK' THEN 1 ELSE 0 END),0) AS ok_count_today,
-            (COALESCE(SUM(CASE WHEN result = 'NG' THEN 1 ELSE 0 END),0)+COALESCE(SUM(CASE WHEN result = 'OK' THEN 1 ELSE 0 END),0)) as total
+            ${countLane("NG")} AS ng_count_today,
+            ${countLane("OK")} AS ok_count_today,            
+            ${countLane("NG")}+${countLane("OK")} as total
           FROM 
             history
           WHERE 
-            DATE(created_t) = CURRENT_DATE
+            DATE(created_t) = CURRENT_DATE;
         `;
-        const query = `
-          SELECT 
-            h.lane_no, 
-            COALESCE(SUM(CASE WHEN result = 'NG' THEN 1 ELSE 0 END),0) AS ng_count_today,
-            COALESCE(SUM(CASE WHEN result = 'OK' THEN 1 ELSE 0 END),0) AS ok_count_today,
-            (COALESCE(SUM(CASE WHEN result = 'NG' THEN 1 ELSE 0 END),0)+COALESCE(SUM(CASE WHEN result = 'OK' THEN 1 ELSE 0 END),0)) as total
-          FROM 
-            (select distinct lane_no from history) h
-          left join
-            history
-          on
-            h.lane_no = history.lane_no
-            and DATE(created_t) = CURRENT_DATE
-          GROUP BY 
-            h.lane_no
-          ORDER BY 
-            h.lane_no
-          ;
-        `;
-        let result, totalResult;
+        let emitMsg;
         try{
-          result = await client.query(query);
-          totalResult = await client.query(totalQuery);
+          const totalResult = await client.query(totalQuery);
+          emitMsg = totalResult.rows;
+          for(let i=1; i<=6; i++){
+            const result = await client.query(countLaneNQuery(i));
+            emitMsg = emitMsg.concat(result.rows);
+          }
           client.release();
         } catch(err){
           errorLog(`${getSocket[port]} socket`, 0, err.message);
           return;
         }
-        io.emit("message", JSON.stringify((totalResult.rows).concat(result.rows)));
+        io.emit("message", JSON.stringify(emitMsg));
       }, interval);
       isInterval = true;
     }

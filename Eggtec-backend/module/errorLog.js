@@ -3,30 +3,33 @@ const fs = require('fs');
 const path = require('path');
 
 const errorCode = {
-  0: "pool-connect failed",
-  1: "query failed",
-  2: "server error",
-  3: "invalid value",
-  4: "fs error",
-  5: "nothing selected"
+    0: "pool-connect failed",
+    1: "query failed",
+    2: "server error",
+    3: "invalid value",
+    4: "fs error",
+    5: "nothing selected",
+    6: "csv-save failed"
 }
 
 // DB connection error log (local)
 function errorLogLocal(type, code, message) {
-    const now = new Date();
-    const formattedDate = now.toISOString().replace(/:/g, '-');
-    const fileName = `${formattedDate}.txt`;
+  const now = new Date();
+  const formattedDate = now.toISOString().replace(/T/, ' ').replace(/\..+/, '');
+  
+  const errorDir = path.resolve(__dirname, '../error');
+  const logFilePath = path.join(errorDir, 'log.txt');
 
-    const errorDir = path.resolve(__dirname, '../error');
-    const filePath = path.join(errorDir, fileName);
+  const errorMsg = `[${formattedDate}] ${type} - ${errorCode[code]}: ${message}\n`;
 
-    if (!fs.existsSync(errorDir)) {
-        fs.mkdirSync(errorDir, { recursive: true });
-    }
-    const errorMsg = `${type} - ${errorCode[code]}: ${message}\n`;
-    fs.writeFile(filePath, errorMsg, (err) => {
-        if (err) { throw err; }
-    });
+  if (!fs.existsSync(errorDir)) {
+      fs.mkdirSync(errorDir, { recursive: true });
+  }
+  fs.appendFile(logFilePath, errorMsg, (err) => {
+      if (err) {
+          console.error('Failed to write to log file:', err);
+      }
+  });
 }
 
 async function errorLog(type, code, message) {
@@ -48,6 +51,7 @@ async function errorLog(type, code, message) {
   } finally {
     if (client) client.release();
   }
+  // console.log("TEST");
 }   
 
 module.exports = {

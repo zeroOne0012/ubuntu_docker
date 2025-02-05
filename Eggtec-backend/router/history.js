@@ -2,7 +2,48 @@ const express = require("express");
 const router = express.Router();
 const Json2csvParser = require("json2csv").Parser;
 const fs = require("fs");
+const path = require('path');
 const { errorLog } = require("../module/errorLog");  
+
+function getUniqueFilePath(basePath, filePath) {
+  let filepath = `${basePath}${filePath}.csv`;
+  let count = 1;
+
+  // 파일이 존재하면 (1), (2) 추가
+  while (fs.existsSync(filepath)) {
+      filepath = `${basePath}${filePath} (${count}).csv`;
+      count++;
+  }
+
+  return filepath;
+}
+
+function saveFile(basePath, filePath, csv) {
+  if (!fs.existsSync(basePath)) {
+    fs.mkdirSync(basePath, { recursive: true });
+  }
+  const filepath = getUniqueFilePath(basePath, filePath);
+
+  return new Promise((resolve, reject) => {
+    // 파일 저장
+    fs.writeFile(filepath, csv, (error) => {
+        if (error) {
+            return reject(`File Save Error`);
+        }
+        resolve(filepath); 
+    });
+  });
+}
+
+function getFormattedDate() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0'); // 월 (0부터 시작하므로 +1 필요)
+  const day = String(now.getDate()).padStart(2, '0'); // 일
+
+  return `${year}${month}${day}`;
+}
+
 router.get("/summary", async (req, res) => {
   try {
     const query = `
@@ -30,8 +71,13 @@ router.get("/summary", async (req, res) => {
         SELECT 
             recipe_no,
             ROUND(
-                (SUM(CASE WHEN result = 'NG' THEN 1 ELSE 0 END)::decimal 
-                / NULLIF(COUNT(*), 0)) * 100, 2
+                (SUM(CASE WHEN lane1 != 0 THEN 1 ELSE 0 END +
+                     CASE WHEN lane2 != 0 THEN 1 ELSE 0 END +
+                     CASE WHEN lane3 != 0 THEN 1 ELSE 0 END +
+                     CASE WHEN lane4 != 0 THEN 1 ELSE 0 END +
+                     CASE WHEN lane5 != 0 THEN 1 ELSE 0 END +
+                     CASE WHEN lane6 != 0 THEN 1 ELSE 0 END)::decimal 
+                / NULLIF(COUNT(*), 0)) / 6 * 100, 2
             ) AS ng_percentage
         FROM 
             latest_data
@@ -86,12 +132,17 @@ router.post("/summary/:id", async (req, res) => {
     query = `
       SELECT 
           recipe_no,
-          created_t::date AS date, 
-          COUNT(*) AS ng_count
+          created_t::date AS date,
+          COALESCE(SUM(CASE WHEN lane1 != 0 THEN 1 ELSE 0 END +
+              CASE WHEN lane2 != 0 THEN 1 ELSE 0 END +
+              CASE WHEN lane3 != 0 THEN 1 ELSE 0 END +
+              CASE WHEN lane4 != 0 THEN 1 ELSE 0 END +
+              CASE WHEN lane5 != 0 THEN 1 ELSE 0 END +
+              CASE WHEN lane6 != 0 THEN 1 ELSE 0 END), 0) AS ng_count
       FROM 
           history
       WHERE 
-          result = 'NG' AND recipe_no = $1
+          recipe_no = $1
           AND ${andClause}
       GROUP BY 
           recipe_no, created_t::date
@@ -146,15 +197,18 @@ router.get("/last", async (req, res) => {
       SELECT 
           h.recipe_no,
           DATE_TRUNC('hour', h.created_t) AS hour_bucket,
-          COUNT(*) AS ng_count
+                    COALESCE(SUM(CASE WHEN lane1 != 0 THEN 1 ELSE 0 END +
+              CASE WHEN lane2 != 0 THEN 1 ELSE 0 END +
+              CASE WHEN lane3 != 0 THEN 1 ELSE 0 END +
+              CASE WHEN lane4 != 0 THEN 1 ELSE 0 END +
+              CASE WHEN lane5 != 0 THEN 1 ELSE 0 END +
+              CASE WHEN lane6 != 0 THEN 1 ELSE 0 END), 0) AS ng_count
       FROM 
           history h
       INNER JOIN 
           latest_dates ld
       ON 
           h.recipe_no = ld.recipe_no AND h.created_t::date = ld.last_date
-      WHERE 
-          h.result = 'NG'
       GROUP BY 
           h.recipe_no, DATE_TRUNC('hour', h.created_t)
     ),
@@ -209,13 +263,17 @@ router.get("/total", async (req, res) => {
     const query = `
     SELECT 
         r.idx AS recipe_no, 
-        COALESCE(COUNT(h.result), 0) AS ng_total_count
+            COALESCE(SUM(CASE WHEN h.lane1 != 0 THEN 1 ELSE 0 END +
+            CASE WHEN h.lane2 != 0 THEN 1 ELSE 0 END +
+            CASE WHEN h.lane3 != 0 THEN 1 ELSE 0 END +
+            CASE WHEN h.lane4 != 0 THEN 1 ELSE 0 END +
+            CASE WHEN h.lane5 != 0 THEN 1 ELSE 0 END +
+            CASE WHEN h.lane6 != 0 THEN 1 ELSE 0 END), 0) AS ng_total_count
     FROM 
         (SELECT DISTINCT idx FROM recipe) r
     LEFT JOIN 
         history h 
     ON r.idx = h.recipe_no 
-        AND h.result = 'NG'
     GROUP BY 
         r.idx
     ORDER BY 
@@ -237,66 +295,88 @@ router.get("/total", async (req, res) => {
   }
 });
 
+
 router.post("/csv/:id", async (req, res) => {
   const id = parseInt(req.params.id, 10);
-  let { start_date, end_date } = req.body;
-  let andClause;
+  let { start_date, end_date, path } = req.body;
+  let andClause, result;
+  let filepath;
+  const basePath = `${path}csv/`
   try {
     let query, values;
     if (!start_date || !end_date){
       andClause = "true";
       values = [id];
+      filepath = `${getFormattedDate()}_recipe${id}`;
     }else{
       andClause = `(created_t::date BETWEEN $2::date + INTERVAL '1 day' AND $3::date + INTERVAL '1 day')`;
       values = [id, start_date, end_date];
-    }
+      let st = start_date.split("-").join("")
+      let end = end_date.split("-").join("")
+      filepath = `${st}_${end}_recipe${id}`;
+    };
     query = `
         SELECT 
             recipe_no,
             created_t::date AS date, 
-            COUNT(*) AS ng_count
+            COALESCE(SUM(CASE WHEN lane1 != 0 THEN 1 ELSE 0 END +
+              CASE WHEN lane2 != 0 THEN 1 ELSE 0 END +
+              CASE WHEN lane3 != 0 THEN 1 ELSE 0 END +
+              CASE WHEN lane4 != 0 THEN 1 ELSE 0 END +
+              CASE WHEN lane5 != 0 THEN 1 ELSE 0 END +
+              CASE WHEN lane6 != 0 THEN 1 ELSE 0 END), 0) AS ng_count
         FROM 
             history
         WHERE 
-            result = 'NG' AND recipe_no = $1
+            recipe_no = $1
             AND ${andClause}
         GROUP BY 
             recipe_no, created_t::date
         ORDER BY 
             date;
     `;
-    const result = await req.client.query(query, values);
-    const jsonData = JSON.parse(JSON.stringify(result.rows));
-
-    const json2csvParser = new Json2csvParser({ header: true });
-    const csv = json2csvParser.parse(jsonData);
-
-    fs.writeFile(`${Date.now()}_${id}`, csv, function (error) {
-      if (error) throw error;
-    });
-
-    res.status(200).json(result.rows);
+    result = await req.client.query(query, values);
   } catch (error) {
     errorLog(`${req.method} ${req.originalUrl}`, 1, error.message);
-    res.status(400).json({
+    return res.status(400).json({
       message: "Invalid Request",
       error: error.message,
     });
   } finally {
     if (req.client) req.client.release(); 
   }
+
+  try{
+    const jsonData = JSON.parse(JSON.stringify(result.rows));
+    const json2csvParser = new Json2csvParser({ header: true });
+    const csv = json2csvParser.parse(jsonData);
+    try {
+      const file = await saveFile(basePath, filepath, csv);
+      res.status(200).json({ message: file });
+    } catch (error) {
+      errorLog(`${req.method} ${req.originalUrl}`, 6, error.message);
+      res.status(500).json({ message: error });
+    }
+    
+  } catch (error) {
+    errorLog(`${req.method} ${req.originalUrl}`, 6, error.message);
+    res.status(404).json({
+      message: "Invalid Request",
+      error: "Empty query result"
+    });
+  }
 });
 
 
 router.post("/", async (req, res) => {
-  const { recipe_no, lane_no, item_no, result, created_t } = req.body;
+  const { recipe_no, item_no, lane1, lane2, lane3, lane4, lane5, lane6, created_t } = req.body;
   try {
     const query = `
-        INSERT INTO history(recipe_no, lane_no, item_no, result, created_t)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO history(recipe_no, item_no, lane1, lane2, lane3, lane4, lane5, lane6, created_t)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING *;
     `;
-    const values = [recipe_no, lane_no, item_no, result, created_t];
+    const values = [recipe_no, item_no, lane1, lane2, lane3, lane4, lane5, lane6, created_t];
 
     const query_result = await req.client.query(query, values);
 
@@ -314,6 +394,7 @@ router.post("/", async (req, res) => {
     if (req.client) req.client.release(); 
   }
 });
+
 
 router.delete("/:id", async (req, res) => {
   const historyId = parseInt(req.params.id, 10);

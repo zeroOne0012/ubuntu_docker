@@ -4,6 +4,9 @@ const cors = require("cors");
 const {createSocketServer, createIntervalSocketServer} = require("./module/socket");
 const dbConnector = require("./middleware/dbConnector");
 
+// const createTables = require("./module/initDb");
+// createTables();
+
 // API Router Dir.
 const recipeRouter = require("./router/recipe");
 const settingRouter = require("./router/setting");
@@ -21,29 +24,26 @@ app.use(
 app.use(cors("*"));
 app.use(dbConnector);
 
-app.get("/", (req, res) => {
-  res.send("NodeJS Server is Running");
-});
-
 app.use((req, res, next) => {
   console.log(`Received request: ${req.method} ${req.protocol}://${req.get('host')}${req.originalUrl}`);
   next();
+});
+
+app.get("/", (req, res) => {
+  res.send("NodeJS Server is Running");
 });
 
 app.use("/apis/recipe", recipeRouter);
 app.use("/apis/setting", settingRouter);
 app.use("/apis/history", historyRouter);
 
-
-
-
 app.listen(3001, () => {
-  console.log("Server is running : http:/localhost:3001");
+  console.log("Server is Running : http:/localhost:3001");
 });
 
 const ports = {
-  standardModePort: [4001, 4002, 4003, 4004, 4005], 
-  intervalModePort: [4006]
+  standardModePort: [4001, 4002, 4003, 4005, 4006], 
+  intervalModePort: [4004]
 };
 
 // 0: 일반적 메시지 송수신 웹소켓서버, 1: interval 기반 메시지 전달 웹소켓서버
